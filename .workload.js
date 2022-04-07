@@ -1,10 +1,12 @@
 'use strict'
 
-require('elastic-apm-node').start({
-  servieName: process.env.WORKLOAD_ELASTIC_APM_SERVICE_NAME,
-  serverUrl: process.env.WORKLOAD_ELASTIC_APM_SERVER_URL,
-  active: process.env.NODE_ENV === 'production'
-})
+if(process.env.APM_AGENT_TYPE=="elasticapm"){
+  require('elastic-apm-node').start({
+    servieName: process.env.WORKLOAD_ELASTIC_APM_SERVICE_NAME,
+    serverUrl: process.env.WORKLOAD_ELASTIC_APM_SERVER_URL,
+    active: process.env.NODE_ENV === 'production'
+  })
+}
 
 var Workload = require('workload')
 var conf = require('./server/config')

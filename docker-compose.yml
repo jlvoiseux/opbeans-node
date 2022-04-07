@@ -17,13 +17,19 @@ services:
       - ELASTIC_APM_APPLICATION_PACKAGES=co.elastic.apm.opbeans
       - ELASTIC_APM_JS_SERVER_URL=${ELASTIC_APM_JS_SERVER_URL:-http://localhost:8200}
       - ELASTIC_APM_JS_SERVICE_NAME=${ELASTIC_APM_JS_SERVICE_NAME:-opbeans-react}
-      - NODE_ENV=test
+      - NODE_ENV=production
       - OPBEANS_SERVER_PORT=${OPBEANS_SERVER_PORT:-3000}
       - PGHOST=postgres
       - PGUSER=postgres
       - PGPASSWORD=hunter2
       - PGDATABASE=opbeans
       - REDIS_URL=redis://redis:6379
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=${ELASTIC_APM_SERVICE_NAME:-opbeans-node},deployment.environment=production
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://apm-server:8200}
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - APM_AGENT_TYPE=${APM_AGENT_TYPE:-elasticapm}
     depends_on:
       apm-server:
         condition: service_healthy
@@ -53,6 +59,8 @@ services:
         -E setup.kibana.host=kibana:5601
         -E setup.template.settings.index.number_of_replicas=0
         -E xpack.monitoring.elasticsearch=true
+        -E output.elasticsearch.username=apm_server_user
+        -E output.elasticsearch.password=changeme
         -E output.elasticsearch.enabled=${APM_SERVER_ELASTICSEARCH_OUTPUT_ENABLED:-true}
     cap_drop:
       - ALL
@@ -76,52 +84,65 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION:-7.3.0}
-    environment:
-      - cluster.name=docker-cluster
-      - xpack.security.enabled=false
-      - bootstrap.memory_lock=true
-      - network.host=0.0.0.0
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "path.data=/usr/share/elasticsearch/data/${STACK_VERSION:-7.3.0}"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    mem_limit: 2g
-    logging:
-      driver: 'json-file'
-      options:
-          max-size: '2m'
-          max-file: '5'
     ports:
-      - "127.0.0.1:${ELASTICSEARCH_PORT:-9200}:9200"
+      - 9200:9200
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
-      retries: 10
-      interval: 20s
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=500ms"]
+      retries: 300
+      interval: 1s
+    environment:
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "network.host="
+      - "transport.host=127.0.0.1"
+      - "http.host=0.0.0.0"
+      - "cluster.routing.allocation.disk.threshold_enabled=false"
+      - "discovery.type=single-node"
+      - "xpack.security.authc.anonymous.roles=remote_monitoring_collector"
+      - "xpack.security.authc.realms.file.file1.order=0"
+      - "xpack.security.authc.realms.native.native1.order=1"
+      - "xpack.security.enabled=true"
+      - "xpack.license.self_generated.type=trial"
+      - "xpack.security.authc.token.enabled=true"
+      - "xpack.security.authc.api_key.enabled=true"
+      - "logger.org.elasticsearch=${ES_LOG_LEVEL:-error}"
+      - "action.destructive_requires_name=false"
     volumes:
-      - esdata:/usr/share/elasticsearch/data
+      - "./config/elasticsearch/roles.yml:/usr/share/elasticsearch/config/roles.yml"
+      - "./config/elasticsearch/users:/usr/share/elasticsearch/config/users"
+      - "./config/elasticsearch/users_roles:/usr/share/elasticsearch/config/users_roles"
 
   kibana:
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION:-7.3.0}
-    environment:
-      SERVER_NAME: kibana.example.org
-      ELASTICSEARCH_URL: http://elasticsearch:9200
     ports:
-      - "127.0.0.1:${KIBANA_PORT:-5601}:5601"
-    logging:
-      driver: 'json-file'
-      options:
-          max-size: '2m'
-          max-file: '5'
+      - 5601:5601
     healthcheck:
-      test: ["CMD", "curl", "--write-out", "'HTTP %{http_code}'", "--silent", "--output", "/dev/null", "http://kibana:5601/"]
-      retries: 10
-      interval: 10s
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q 'All services are available'"]
+      retries: 300
+      interval: 1s
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      ELASTICSEARCH_USERNAME: "${KIBANA_ES_USER:-kibana_system_user}"
+      ELASTICSEARCH_PASSWORD: "${KIBANA_ES_PASS:-changeme}"
+      XPACK_FLEET_AGENTS_ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      XPACK_FLEET_REGISTRYURL: "https://epr-snapshot.elastic.co"
+      XPACK_SECURITY_LOGINASSISTANCEMESSAGE": "Login&#32;details:&#32;`admin/changeme`."
     depends_on:
-      elasticsearch:
-        condition: service_healthy
+      elasticsearch: { condition: service_healthy }
+    volumes:
+      - "./config/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml"
+
+  fleet_setup:
+      command:
+      - curl
+      - -X
+      - POST
+      - -H
+      - "kbn-xsrf: 1"
+      - "http://admin:changeme@kibana:5601/api/fleet/setup"
+      depends_on:
+        kibana:
+          condition: "service_healthy"
+      image: "docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION:-7.3.0}"
 
   postgres:
     image: postgres:latest

@@ -1,11 +1,20 @@
 'use strict'
 
+console.log(process.env.APM_AGENT_TYPE)
+
 const conf = require('./server/config')
 const logger = require('pino')({ level: 'debug' })
+
 const apmConf = Object.assign({}, conf.apm, {
   logger: logger.child({ level: 'info' })
 })
-const apm = require('elastic-apm-node').start(apmConf)
+const apm = require('elastic-apm-node')
+if(process.env.APM_AGENT_TYPE == "elasticapm"){
+  apm.start(apmConf)
+}
+
+//const tracer = require('./otel-config')(process.env.OPBEANS_NODE_OTEL_SERVICE_NAME, "production");
+
 const URL = require('url').URL
 const fs = require('fs')
 
