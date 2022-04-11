@@ -12,8 +12,6 @@ const execSync = require('child_process').execSync;
 
 module.exports =  (serviceName, environment) => {
 
-  console.log("O T E L O T E L O T E L")
-
   const traceExporter = new OTLPTraceExporter({
     url: "http://apm-server:8200", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
     headers: {}, // an optional object containing custom headers to be sent with each request
@@ -38,7 +36,6 @@ module.exports =  (serviceName, environment) => {
   });
 
   if(process.env.APM_AGENT_TYPE == "opentelemetry"){
-    console.log("O T E L O T E L O T E L")
     sdk.start().then(() => {
 
       const hostMetrics = new HostMetrics(apiMetrics.metrics.getMeterProvider());
