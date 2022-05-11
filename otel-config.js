@@ -14,8 +14,8 @@ const execSync = require('child_process').execSync;
 
 module.exports =  (serviceName, environment) => {
 
-  var traceExporter
-  var metricExporter
+  var traceExporter = {}
+  var metricExporter = {}
 
   if (process.env.OTEL_EXPORTER_OTLP_PROTOCOL == "http"){
     traceExporter = new OTLPTraceExporterHTTP({
