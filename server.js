@@ -13,7 +13,7 @@ if(process.env.APM_AGENT_TYPE == "elasticapm"){
   apm.start(apmConf)
 }
 
-//const tracer = require('./otel-config')(process.env.OPBEANS_NODE_OTEL_SERVICE_NAME, "production");
+const tracer = require('./otel-config')(process.env.OPBEANS_NODE_OTEL_SERVICE_NAME, "production");
 
 const URL = require('url').URL
 const fs = require('fs')
