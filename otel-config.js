@@ -18,13 +18,13 @@ module.exports =  (serviceName, environment) => {
     const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
     const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-proto');
     traceExporter = new OTLPTraceExporter({
-      url: "http://apm-server:8200", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
+      url: "http://apm-server:8200/v1/traces", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
       headers: {}, // an optional object containing custom headers to be sent with each request
       concurrencyLimit: 1000, // an optional limit on pending requests
     });
 
     metricExporter = new OTLPMetricExporter({
-      url: "http://apm-server:8200", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
+      url: "http://apm-server:8200/v1/metrics", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
       concurrencyLimit: 1000, // an optional limit on pending requests
     });
   }
