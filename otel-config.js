@@ -15,8 +15,8 @@ module.exports =  (serviceName, environment) => {
   var metricExporter;
 
   if (process.env.OTEL_EXPORTER_OTLP_PROTOCOL == "http/protobuf"){
-    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
-    const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-http');
+    const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-proto');
+    const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-proto');
     traceExporter = new OTLPTraceExporter({
       url: "http://apm-server:8200", // url is optional and can be omitted - default is http://localhost:55681/v1/traces
       headers: {}, // an optional object containing custom headers to be sent with each request
